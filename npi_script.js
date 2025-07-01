@@ -24,6 +24,7 @@
   const MIN_W = 25; // minimum width of either primary or secondary nav panes in dual nav configuration
   const GUTTER_W = 100; // right side gutter width in dual nav configuration
   const MEDIA_QUERY_WIN_WIDTH = window.matchMedia('(min-width: 768px)'); // a MediaQueryList for “min-width: 768px”, later used to set the correct layout
+  const HTML_NAME = window.location.href.split('/').pop().replace(/\..*$/, '');
 
   const DOC_ROOT = (() => {
     // Determine the base path (DOC_ROOT) of the current documentation site.
@@ -87,6 +88,7 @@
   let _secTreeRemarks = '';
   let _wPri = loadNumLocalStorage(KEY_PRI_WIDTH, 250);
   let _wSec = loadNumLocalStorage(KEY_SEC_WIDTH, 250);
+  let _priExpandedNodes = new Set();
 
   let _adjustXandH_resizeObserver = null;
   let _docMarginStableFrames = 0;
@@ -249,6 +251,86 @@
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // #endregion 🟥 HELPERS
 
+  // #region 🟩 CONSOLE OBJECT
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  const conObj = Object.create(null); // main object
+
+  Object.defineProperty(conObj, 'root', { // npi.root -> DOC_ROOT
+    get() {
+      console.log(`Root: ${DOC_ROOT}`);
+    },
+    configurable: true
+  });
+
+  Object.defineProperty(conObj, 'pri_tree', { // npi.pri_tree -> _priTree
+    get() {
+      console.log('● ● ● ● ● PRI TREE ● ● ● ● ●');
+      if (_priTree.length > 0) {
+        printTree(_priTree);
+      }
+      else {
+        console.log('Pri Tree is EMPTY');
+      }
+      console.log('○ ○ ○ ○ ○ PRI TREE ○ ○ ○ ○ ○');
+    },
+    configurable: true
+  });
+
+  Object.defineProperty(conObj, 'pri_tree_discarded', { // npi.pri_tree_discarded -> _priTreeDiscarded
+    get() {
+      console.log('● ● ● ● ● PRI TREE DISCARDED ● ● ● ● ●');
+      if (_priTreeDiscarded.length > 0) {
+        printTree(_priTreeDiscarded);
+      }
+      else {
+        console.log('Pri Tree Discarded is EMPTY');
+      }
+      console.log('○ ○ ○ ○ ○ PRI TREE DISCARDED ○ ○ ○ ○ ○');
+    },
+    configurable: true
+  });
+
+  Object.defineProperty(conObj, 'sec_tree', { // npi.sec_tree -> _secTree
+    get() {
+      console.log('● ● ● ● ● SEC TREE ● ● ● ● ●');
+      if (_secTree.length > 0) {
+        printTree(_secTree);
+      }
+      else {
+        console.log(`Sec Tree is EMPTY → ${_secTreeRemarks}`);
+      }
+      console.log('○ ○ ○ ○ ○ SEC TREE ○ ○ ○ ○ ○');
+    },
+    configurable: true
+  });
+
+  Object.defineProperty(conObj, 'sec_tree_remarks', { // npi.sec_tree_remarks -> _secTreeRemarks
+    get() {
+      console.log(`Sec Tree Remarks: ${_secTreeRemarks}`);
+    },
+    configurable: true
+  });
+
+  Object.defineProperty(conObj, 'help', { // npi.help
+    get() {
+      console.log(
+        '● npi.help → This information ouput\n' +
+        '● npi.root → Displays the current root folder\n' +
+        '● npi.pri_tree → Displays the primary tree i.e. custom NAVTREE data used for dual nav configuration\n' +
+        '● npi.pri_tree_discarded → Displays the primary tree discarded part i.e. default NAVTREE data not included in custom NAVTREE used for dual nav configuration\n' +
+        '● npi.sec_tree → Displays the secondary tree i.e. member signatures of the current page if it is a class or struct page\n' +
+        '● npi.sec_tree_remarks → Displays the remarks for the secondary tree i.e. member signature generation'
+      );
+    },
+    configurable: true
+  });
+
+  window.npi = conObj; // assign 'npi' as the object for windows so that it can be used in console.
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // #endregion 🟥 CONSOLE OBJECT
+
   // #region 🟩 SEARCH PLACEHOLDER TWEAK
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -337,25 +419,25 @@
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // #endregion 🟥 SIDE NAV TWEAK
 
-  // #region 🟩 NAV TOGGLE BUTTON
+  // #region 🟩 SIDEBAR TOGGLE BUTTON
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  async function navToggleButton() {
+  async function sidebarToggleButton() {
     const itemSearchBox = await waitFor('#searchBoxPos2');
     function setup() {
       mo.disconnect();
       const winWidth = window.innerWidth || document.documentElement.clientWidth;
       if (winWidth >= 768) {
-        let btn = itemSearchBox.querySelector('.npi-nav-toggle-btn');
+        let btn = itemSearchBox.querySelector('.npi-sidebar-toggle-btn');
         if (btn) {
           itemSearchBox.appendChild(btn);
           const icon = btn.querySelector("img");
           icon.src = DOC_ROOT + (_dualNav ? ICON_DUAL_NAV : ICON_SIDE_NAV);
-          //console.log('Nav Toggle Button - Setup: Reposition');
+          //console.log('Sidebar Toggle Button - Setup: Reposition');
         }
         else {
           btn = document.createElement('a');
-          btn.className = 'npi-nav-toggle-btn';
+          btn.className = 'npi-sidebar-toggle-btn';
           btn.href = '#';
           btn.title = 'Toggle Single/Double Navigation Sidebar';
 
@@ -372,29 +454,547 @@
             img.src = DOC_ROOT + (_dualNav ? ICON_DUAL_NAV : ICON_SIDE_NAV);
             localStorage.setItem(KEY_DUAL_NAV, _dualNav ? 'true' : 'false');
             setCorrectLayout(MEDIA_QUERY_WIN_WIDTH);
-            //console.log(`Nav Toggle Button - Click: DualNav = ${_dualNav}`);
+            //console.log(`Sidebar Toggle Button - Click: DualNav = ${_dualNav}`);
           });
 
           itemSearchBox.appendChild(btn);
-          //console.log('Nav Toggle Button - Setup: New Button');
+          //console.log('Sidebar Toggle Button - Setup: New Button');
         }
       }
       else {
-        //console.log('Nav Toggle Button - Setup: Width < 768');
+        //console.log('Sidebar Toggle Button - Setup: Width < 768');
       }
       mo.observe(itemSearchBox, { childList: true });
     }
     const mo = new MutationObserver(setup);
     //mo.observe(itemSearchBox, { childList: true });
     setup();
-    //console.log('Nav Toggle Button: SUCCESS');
+    //console.log('Sidebar Toggle Button: SUCCESS');
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // #endregion 🟥 NAV TOGGLE BUTTON
+  // #endregion 🟥 SIDEBAR TOGGLE BUTTON
+
+  // #region 🟩 GEN PRI TREE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  async function genPriTree(n = 0) {
+
+    // checking if NAVTREE exists
+
+    if (!window.NAVTREE) {
+      console.log(`Gen Pri Tree [${n}]: RERUN → NAVTREE not defined`);
+      return rerun(genPriTree, n);
+    }
+
+    if (!Array.isArray(window.NAVTREE)) {
+      console.log(`Gen Pri Tree [${n}]: RERUN → NAVTREE not an array`);
+      return rerun(genPriTree, n);
+    }
+
+    if (window.NAVTREE.length == 0) {
+      console.log(`Gen Pri Tree [${n}]: RERUN → NAVTREE array is empty`);
+      return rerun(genPriTree, n);
+    }
+
+    if (!Array.isArray(window.NAVTREE[0])) {
+      console.log(`Gen Pri Tree [${n}]: RERUN → NAVTREE array's 1st entry not an array`);
+      return rerun(genPriTree, n);
+    }
+
+    if (window.NAVTREE[0].length < 3) {
+      console.log(`Gen Pri Tree [${n}]: RERUN → NAVTREE array's 1st entry has length less than 3`);
+      return rerun(genPriTree, n);
+    }
+
+    if (!Array.isArray(window.NAVTREE[0][2])) {
+      console.log(`Gen Pri Tree [${n}]: RERUN → NAVTREE array's 1st entry does not have its 3rd entry as an array`);
+      return rerun(genPriTree, n);
+    }
+
+    // setting the two array's lengths as 0 so that it is reinitialized
+    // while maintaining previous links
+    _priTree.length = 0;
+    _priTreeDiscarded.length = 0;
+
+    // read the previous stored doxygen time (returns null if nothing was stored)
+    const prvDoxyTime = sessionStorage.getItem(KEY_GEN_DATA);
+
+    // read the current doxygen time obtained from footer
+    let curDoxyTime = null;
+    try {
+      const footerEl = await waitFor('#nav-path li.footer');
+      const text = footerEl.textContent || footerEl.innerText;
+      const match = text.match(/Generated\s+on\s+(.+)/i);
+      if (match) {
+        curDoxyTime = match[1].trim();
+      } else {
+        console.warn(`Gen Pri Tree [${n}]: Could not find “Generated on …” in "#nav-path li.footer" element`);
+      }
+    } catch (err) {
+      console.error(`Gen Pri Tree [${n}]: Error waiting for footer "#nav-path li.footer" element:`, err);
+    }
+
+    // read the stored arrays if current time is same as previous time
+    if (prvDoxyTime !== null && prvDoxyTime === curDoxyTime) {
+      const priTreeRaw = sessionStorage.getItem(KEY_PRI_TREE);
+      if (priTreeRaw !== null) {
+        try {
+          _priTree = JSON.parse(priTreeRaw);
+        }
+        catch (e) {
+          console.error(`Gen Pri Tree [${n}]: Could not parse stored JSON for _priTree:`, e);
+        }
+
+        if (_priTree.length > 0) {
+
+          const priDiscRaw = sessionStorage.getItem(KEY_PRI_TREE_DISCARDED);
+          if (priDiscRaw !== null) {
+            try {
+              _priTreeDiscarded = JSON.parse(priDiscRaw);
+            }
+            catch (e) {
+              console.error(`Gen Pri Tree [${n}]: Could not parse stored JSON for _priTreeDiscarded:`, e);
+            }
+          }
+
+          console.log(`Gen Pri Tree [${n}]: Loaded from Session Storage`);
+          return;
+        }
+      }
+    }
+
+    function cloneTree(tree) {
+      return tree.map(([name, href, kids]) => {
+        const clonedKids = Array.isArray(kids) ? cloneTree(kids) : kids;
+        return [name, href, clonedKids];
+      });
+    }
+
+    function loadScript(relUrl) {
+      return new Promise((res, rej) => {
+        const fullUrl = new URL(relUrl, DOC_ROOT).href; // build an absolute URL from a relative path and a base root.
+        const s = document.createElement('script'); s.src = fullUrl; s.async = true; // create and configure a <script> tag.
+        s.onload = () => res(); // when the script finishes loading, call resolve()
+        s.onerror = err => rej(err); // if the script fails to load, call reject(err)
+        document.head.appendChild(s); // insert the <script> tag into the page and kicks off the download.
+      });
+    }
+
+    function loadChildren(tree) {
+      const promises = [];
+      tree.forEach(node => {
+        const c = node[2];
+        if (typeof c === 'string') {
+          promises.push(
+            loadScript(c + '.js')
+              .then(() => {
+                let arr = window[c];
+                if (!Array.isArray(arr)) arr = window[c.split('/').pop()];
+                node[2] = Array.isArray(arr) ? arr : [];
+                return loadChildren(node[2]);
+              })
+              .catch(() => { node[2] = []; })
+          );
+        } else if (Array.isArray(c)) {
+          promises.push(loadChildren(c));
+        }
+      });
+      return Promise.all(promises);
+    }
+
+    function flatten(oldTree, preName = "", newTree = []) {
+      for (let ii = 0; ii < oldTree.length; ++ii) {
+        const newName = preName == "" ? oldTree[ii][0] : preName + "::" + oldTree[ii][0];
+        newTree.push([newName, oldTree[ii][1], null]);
+        if (Array.isArray(oldTree[ii][2]) && oldTree[ii][2].length > 0)
+          flatten(oldTree[ii][2], newName, newTree);
+      }
+      return newTree;
+    }
+
+    function flattenFiles(oldTree, preName = "", newTree = []) {
+      for (let ii = 0; ii < oldTree.length; ++ii) {
+        const newName = preName == "" ? oldTree[ii][0] : preName + "/" + oldTree[ii][0];
+        newTree.push([newName, oldTree[ii][1], null]);
+        if (Array.isArray(oldTree[ii][2]) && oldTree[ii][2].length > 0)
+          flattenFiles(oldTree[ii][2], newName, newTree);
+      }
+      return newTree;
+    }
+
+    function pruneAnchors(tree) {
+      for (let ii = tree.length - 1; ii >= 0; --ii) {
+        const [name, href, kids] = tree[ii];
+
+        if (typeof href !== 'string' || href.toLowerCase().includes('html#')) {
+          tree.splice(ii, 1);
+          continue;
+        }
+
+        if (Array.isArray(kids) && kids.length > 0) {
+          pruneAnchors(kids);
+        }
+      }
+    }
+
+    function pruneAnchorsWithoutChildren(tree) {
+      for (let ii = tree.length - 1; ii >= 0; --ii) {
+        const [name, href, kids] = tree[ii];
+
+        if (Array.isArray(kids) && kids.length > 0) {
+          pruneAnchorsWithoutChildren(kids);
+        }
+
+        if ((!Array.isArray(kids) || kids.length === 0) && (typeof href !== 'string' || href.toLowerCase().includes('html#'))) {
+          tree.splice(ii, 1);
+        }
+      }
+    }
+
+    function pruneNonNamespace(tree) {
+      for (let ii = tree.length - 1; ii >= 0; --ii) {
+        const [name, href, kids] = tree[ii];
+
+        if (typeof href !== 'string' || href.toLowerCase().includes('html#')) {
+          tree.splice(ii, 1);
+          continue;
+        }
+
+        const htmlName = href.split('/').pop() || '';
+        if (!htmlName.toLowerCase().startsWith('namespace')) {
+          tree.splice(ii, 1);
+          continue;
+        }
+
+        if (Array.isArray(kids) && kids.length > 0) {
+          pruneNonNamespace(kids);
+        }
+      }
+    }
+
+    function pruneNonFile(tree) {
+      for (let ii = tree.length - 1; ii >= 0; --ii) {
+        const [name, href, kids] = tree[ii];
+
+        if (typeof href !== 'string' || href.toLowerCase().includes('html#')) {
+          tree.splice(ii, 1);
+          continue;
+        }
+
+        const htmlName = href.split('/').pop() || '';
+        if (!htmlName.startsWith('_') && !htmlName.startsWith('dir_')) {
+          tree.splice(ii, 1);
+          continue;
+        }
+
+        if (Array.isArray(kids) && kids.length > 0) {
+          pruneNonFile(kids);
+        }
+      }
+    }
+
+    // copy the default base nav tree data
+    _priTreeDiscarded = cloneTree(window.NAVTREE[0][2]);
+
+    // load all children and wait for it to complete
+    await loadChildren(_priTreeDiscarded);
+
+    // Namespaces Entries
+    if (_priTreeDiscarded.length > 0) {
+      for (let ii = 0; ii < _priTreeDiscarded.length; ++ii) {
+        const [name, href, kids] = _priTreeDiscarded[ii];
+        if (name === 'Namespaces' && Array.isArray(kids) && kids.length > 0) {
+
+          for (let jj = 0; jj < kids.length; ++jj) {
+            if (kids[jj][0] === 'Namespace List') {
+              if (Array.isArray(kids[jj][2]) && kids[jj][2].length > 0) {
+                pruneNonNamespace(kids[jj][2]);
+                if (kids[jj][2].length > 0) {
+                  _priTree.push(['Namespaces', kids[jj][1], flatten(kids[jj][2])]);
+                }
+              }
+              kids.splice(jj, 1);
+              break;
+            }
+          }
+
+          if (kids.length > 0) {
+            for (let jj = 0; jj < kids.length; ++jj) {
+              if (kids[jj][0] === 'Namespace Members') {
+                if (Array.isArray(kids[jj][2]) && kids[jj][2].length > 0) {
+                  let temp = flatten(kids[jj][2]);
+                  if (temp.length > 0) {
+                    let idx = -1;
+                    for (let kk = 0; kk < temp.length; ++kk) {
+                      if (temp[kk][0] === 'All') {
+                        idx = kk;
+                        break;
+                      }
+                    }
+                    if (idx > -1) {
+                      let tempHref = temp[idx][1];
+                      temp.splice(idx, 1);
+                      if (temp.length > 0) {
+                        _priTree.push(['Globals', tempHref, temp]);
+                      }
+                      else if (typeof tempHref === 'string' && tempHref.trim().length > 0) {
+                        _priTree.push(['Globals', tempHref, null]);
+                      }
+                    }
+                  }
+                }
+                kids.splice(jj, 1);
+                break;
+              }
+            }
+          }
+
+          if (kids.length == 0) {
+            _priTreeDiscarded.splice(ii, 1);
+          }
+
+          break;
+        }
+      }
+    }
+
+    // Concepts
+    if (_priTreeDiscarded.length > 0) {
+      for (let ii = 0; ii < _priTreeDiscarded.length; ++ii) {
+        const [name, href, kids] = _priTreeDiscarded[ii];
+        if (name === 'Concepts') {
+          if (Array.isArray(kids) && kids.length > 0) {
+            let flat = flatten(kids);
+            for (let jj = flat.length - 1; jj >= 0; --jj) {
+
+              if (typeof flat[jj][1] !== 'string' || flat[jj][1].toLowerCase().includes('html#')) {
+                flat.splice(ii, 1);
+                continue;
+              }
+
+              const htmlName = flat[jj][1].split('/').pop() || '';
+              if (!htmlName.toLowerCase().startsWith('concept')) {
+                flat.splice(ii, 1);
+                continue;
+              }
+            }
+            if (flat.length > 0) {
+              _priTree.push(['Concepts', href, flat]);
+            }
+          }
+          _priTreeDiscarded.splice(ii, 1);
+          break;
+        }
+      }
+    }
+
+    // Classes Entries
+    if (_priTreeDiscarded.length > 0) {
+      for (let ii = 0; ii < _priTreeDiscarded.length; ++ii) {
+        const [name, href, kids] = _priTreeDiscarded[ii];
+        if (name === 'Classes' && Array.isArray(kids) && kids.length > 0) {
+
+          let classesInserted = false;
+          for (let jj = 0; jj < kids.length; ++jj) {
+            if (kids[jj][0] === 'Class List') {
+              if (Array.isArray(kids[jj][2]) && kids[jj][2].length > 0) {
+                pruneAnchors(kids[jj][2]);
+                if (kids[jj][2].length > 0) {
+                  let flat = flatten(kids[jj][2]);
+                  for (let kk = flat.length - 1; kk >= 0; --kk) {
+
+                    if (typeof flat[kk][1] !== 'string' || flat[kk][1].toLowerCase().includes('html#')) {
+                      flat.splice(ii, 1);
+                      continue;
+                    }
+
+                    const htmlName = flat[kk][1].split('/').pop() || '';
+                    if (!htmlName.startsWith('class') && !htmlName.startsWith('struct')) {
+                      flat.splice(kk, 1);
+                      continue;
+                    }
+                  }
+                  if (flat.length > 0) {
+                    classesInserted = true;
+                    _priTree.push(['Classes', kids[jj][1], flat]);
+                  }
+                }
+              }
+              kids.splice(jj, 1);
+              break;
+            }
+          }
+
+          if (kids.length > 0 && classesInserted) {
+            for (let jj = 0; jj < kids.length; ++jj) {
+              if (kids[jj][0] === 'Class Index') {
+                if (!Array.isArray(kids[jj][2]) || kids[jj][2].length == 0) {
+                  _priTree[_priTree.length - 1][2].push(['Index', kids[jj][1], null]);
+                }
+                kids.splice(jj, 1);
+                break;
+              }
+            }
+          }
+
+          if (kids.length > 0) {
+            for (let jj = 0; jj < kids.length; ++jj) {
+              if (kids[jj][0] === 'Class Members') {
+                if (Array.isArray(kids[jj][2]) && kids[jj][2].length > 0) {
+                  let temp = flatten(kids[jj][2]);
+                  if (temp.length > 0) {
+                    let idx = -1;
+                    for (let kk = 0; kk < temp.length; ++kk) {
+                      if (temp[kk][0] === 'All') {
+                        idx = kk;
+                        break;
+                      }
+                    }
+                    if (idx > -1) {
+                      let tempHref = temp[idx][1];
+                      temp.splice(idx, 1);
+                      if (temp.length > 0) {
+                        _priTree.push(['Class Members', tempHref, temp]);
+                      }
+                      else if (typeof tempHref === 'string' && tempHref.trim().length > 0) {
+                        _priTree.push(['Class Members', tempHref, null]);
+                      }
+                    }
+                  }
+                }
+                kids.splice(jj, 1);
+                break;
+              }
+            }
+          }
+
+          if (kids.length == 0) {
+            _priTreeDiscarded.splice(ii, 1);
+          }
+
+          break;
+        }
+      }
+    }
+
+    // Files
+    if (_priTreeDiscarded.length > 0) {
+      for (let ii = 0; ii < _priTreeDiscarded.length; ++ii) {
+        const [name, href, kids] = _priTreeDiscarded[ii];
+        if (name === 'Files') {
+
+          if (Array.isArray(kids) && kids.length > 0) {
+            for (let jj = 0; jj < kids.length; ++jj) {
+              if (kids[jj][0] === 'File List') {
+                if (Array.isArray(kids[jj][2]) && kids[jj][2].length > 0) {
+                  pruneNonFile(kids[jj][2]);
+                  if (kids[jj][2].length > 0) {
+                    _priTree.push(['Files', kids[jj][1], flattenFiles(kids[jj][2])]);
+                  }
+                }
+                kids.splice(jj, 1);
+                break;
+              }
+            }
+          }
+
+          if (kids.length == 0) {
+            _priTreeDiscarded.splice(ii, 1);
+          }
+
+          break;
+        }
+      }
+    }
+
+    _priTree.push(['Ind A', null, null]);
+    _priTree.push(['Ind B', null, null]);
+
+    _priTree.push([
+      'Level 0',
+      null,
+      [
+        [  // ← child-array starts here
+          'Level 1',
+          null,
+          [
+            ['Level A', null, null],
+            ['Level B', null, null],
+            ['Level C', null, null],
+            [
+              'Level 2',
+              null,
+              [
+                ['Level x', null, null],
+                [
+                  'Level 3',
+                  null,
+                  [
+                    [
+                      'Level 4',
+                      null,
+                      [
+                        ['Level 5', null, null]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]  // ← end of children of Level 0
+      ]
+    ]);
+
+    _priTree.push(['Ind C', null, null]);
+
+    sessionStorage.setItem(KEY_GEN_DATA, curDoxyTime);
+    sessionStorage.setItem(KEY_PRI_TREE, JSON.stringify(_priTree));
+    sessionStorage.setItem(KEY_PRI_TREE_DISCARDED, JSON.stringify(_priTreeDiscarded));
+
+    console.log(`Gen Pri Tree [${n}]: Generated`);
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // #endregion 🟥 GEN PRI TREE
 
   // #region 🟩 GEN SEC TREE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  function formatMemSigs(text) {
+    if (typeof text !== 'string') return text;
+
+    return text
+      // Remove space before *, &, &&
+      .replace(/\s+([*&]{1,2})/g, '$1')
+      // Ensure space after *, &, &&
+      .replace(/([*&]{1,2})(?!\s)/g, '$1 ')
+
+      // Remove spaces inside <...>
+      .replace(/<\s+/g, '<')
+      .replace(/\s+>/g, '>')
+      .replace(/\s+<\s+/g, '<')
+      .replace(/\s+>\s+/g, '>')
+
+      // Remove space before commas, ensure one after
+      .replace(/\s+,/g, ',')
+      .replace(/,(?!\s)/g, ', ')
+
+      // Remove space after ( and before )
+      .replace(/\(\s+/g, '(')
+      .replace(/\s+\)/g, ')')
+
+      // ❗ Remove space before (
+      .replace(/\s+\(/g, '(')
+
+      // Add space before and after = in special cases
+      .replace(/\s*=\s*(default|delete|0)/g, ' = $1')
+
+      // Collapse multiple spaces and trim
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
 
   async function genSecTree() {
 
@@ -460,7 +1060,8 @@
 
         const lftText = tds[0].innerText.replace(/\s+/g, ' ').trim();
         const ritText = tds[1].innerText.replace(/\s+/g, ' ').trim();
-        let leafName = `${lftText} ${ritText}`.trim();
+        let leafNameTemp = `${lftText} ${ritText}`.trim();
+        let leafName = formatMemSigs(leafNameTemp);
         if (leafName.startsWith('enum')) {
           leafName = leafName.replace(/\s*\{[\s\S]*\}/, '').trim();
         }
@@ -491,6 +1092,268 @@
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // #endregion 🟥 GEN SEC TREE
+
+  // #region 🟩 BUILD TREE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  async function buildPriTree() {
+    if (_priTree.length === 0) {
+      console.warn('Build Pri Tree: _priTree array is EMPTY');
+      return;
+    }
+
+    // 1) Load stored IDs
+    const expdRaw = sessionStorage.getItem(KEY_PRI_NAV_EXPANDED_NODES);
+    if (expdRaw !== null) {
+      try {
+        const expdAry = JSON.parse(expdRaw);
+        _priExpandedNodes = new Set(expdAry);
+      }
+      catch (e) {
+        console.error(`Gen Pri Tree: Could not parse JSON for _priExpandedNodes:`, e);
+        _priExpandedNodes = new Set();
+      }
+    }
+    else {
+      _priExpandedNodes = new Set();
+    }
+
+    // 2) Track which IDs actually exist in this build
+    const curExpandableNodes = new Set();
+
+    function builder(tree, level = []) {
+      const list = document.createElement('ul');
+      list.classList.add('npi-tree-list');
+
+      tree.forEach(([name, path, kids], idx) => {
+        const href = (typeof path === 'string' && path) ? DOC_ROOT + path : null;
+        const item = document.createElement('li');
+        item.classList.add('npi-tree-item');
+        const line = document.createElement('div');
+        line.classList.add('npi-tree-line');
+        const node = document.createElement('button');
+        node.classList.add('npi-tree-node');
+        const link = document.createElement('a');
+        link.classList.add('npi-tree-link');
+
+        line.append(node, link);
+        item.appendChild(line);
+
+        if (href) {
+          link.href = href;
+        } else {
+          link.removeAttribute('href');
+          link.setAttribute('aria-disabled', 'true');
+          link.style.cursor = 'default';
+          link.setAttribute('tabindex', '-1');
+        }
+        link.textContent = name;
+
+        if (Array.isArray(kids) && kids.length > 0) {
+          // build a stable ID: either the file base name, or the path of indices
+          const thisLevel = [...level, idx];
+          const fileBase = href
+            ? path.split('/').pop().replace(/\..*$/, '')
+            : null;
+          const id = fileBase || thisLevel.join('.');
+
+          curExpandableNodes.add(id);
+
+          item.classList.add('npi-has-children');
+          if (_priExpandedNodes.has(id)) {
+            item.classList.add('npi-node-open');
+            node.textContent = '○';
+          } else {
+            node.textContent = '●';
+          }
+
+          node.addEventListener('click', e => {
+            e.stopPropagation();
+            const nowOpen = item.classList.toggle('npi-node-open');
+            node.textContent = nowOpen ? '○' : '●';
+
+            if (nowOpen) _priExpandedNodes.add(id);
+            else _priExpandedNodes.delete(id);
+
+            sessionStorage.setItem(
+              KEY_PRI_NAV_EXPANDED_NODES,
+              JSON.stringify([..._priExpandedNodes])
+            );
+          });
+
+          item.appendChild(builder(kids, thisLevel));
+        } else {
+          node.style.visibility = 'hidden';
+        }
+
+        list.appendChild(item);
+      });
+
+      return list;
+    }
+
+    // 3) Prune any IDs no longer present
+    for (const id of [..._priExpandedNodes]) {
+      if (!curExpandableNodes.has(id)) {
+        _priExpandedNodes.delete(id);
+      }
+    }
+    // 4) Persist the cleaned set
+    sessionStorage.setItem(
+      KEY_PRI_NAV_EXPANDED_NODES,
+      JSON.stringify([..._priExpandedNodes])
+    );
+
+    // 5) Render
+    const pri = await waitFor('#npi-pri-nav');
+    pri.innerHTML = '';                      // clear old tree
+    pri.appendChild(builder(_priTree));
+  }
+
+
+  function buildTree(tree, curHref, addRoot = false, showVisited = false, expanded = '') {
+
+    let expdSet = new Set();
+    const expdAll = (expanded === 'all');
+    if (!expdAll && expanded) {
+      try {
+        const expdAry = JSON.parse(sessionStorage.getItem(expanded)) || [];
+        expdSet = new Set(expdAry);
+      }
+      catch (err) {
+        console.error(`Build Tree: Session Key "${expanded}" Error:`, err);
+      }
+    }
+
+    function builder(subTree, path = []) {
+      if (!Array.isArray(subTree) || subTree.length == 0) {
+        console.warn('Build Tree - Builder: Passed Sub Tree is not an Array or is Empty');
+        return;
+      }
+
+      const list = document.createElement('ul');
+      list.classList.add('npi-tree-list');
+
+      subTree.forEach(([name, tref, kids], idx) => {
+
+        const thisPath = [...path, idx];
+        //console.log(thisPath, String(thisPath) + ':' + tref);
+
+        const nodeId = (Array.isArray(kids) && kids.length > 0) ? (typeof tref === 'string' && tref.length > 0) ? tref.split('/').pop().replace(/\..*$/, '') : String(thisPath) : null;
+        console.log(nodeId);
+
+        const href = (typeof tref === 'string' && tref.length > 0) ? (addRoot ? DOC_ROOT + tref : tref) : null;
+
+        const item = document.createElement('li');
+        item.classList.add('npi-tree-item');
+
+        const line = document.createElement('div');
+        line.classList.add('npi-tree-line');
+
+        const node = document.createElement('button');
+        node.classList.add('npi-tree-node');
+
+        const link = document.createElement('a');
+        link.classList.add('npi-tree-link');
+
+        line.appendChild(node);
+        line.appendChild(link);
+        item.appendChild(line);
+
+        if (href !== null) {
+          link.href = href;
+        }
+        else {
+          link.removeAttribute('href');               // no href → no navigation
+          link.setAttribute('aria-disabled', 'true'); // aria-disabled="true" is a WAI-ARIA attribute that tells screen-readers and other assistive technologies that this “link” is in a disabled state.
+          link.style.cursor = 'default';              // visual cue
+          link.setAttribute('tabindex', '-1');        // remove from keyboard tab order
+        }
+        link.textContent = name;
+
+        if (showVisited) {
+          link.addEventListener('click', e => {
+            item.classList.add('npi-visited');
+          });
+        }
+
+        if (Array.isArray(kids) && kids.length > 0) {
+
+          item.classList.add('npi-has-children');
+
+          const isOpen = expdAll || expdSet.has(href);
+          if (isOpen) {
+            item.classList.add('npi-node-open');
+            node.textContent = '○';
+          }
+          else {
+            node.textContent = '●';
+          }
+
+          node.addEventListener('click', e => {
+            e.stopPropagation();
+            const nowOpen = item.classList.toggle('npi-node-open');
+            node.textContent = nowOpen ? '○' : '●';
+
+            if (expanded && !expdAll) {
+              if (nowOpen) expdSet.add(href);
+              else expdSet.delete(href);
+              sessionStorage.setItem(expanded, JSON.stringify([...expdSet]));
+            }
+          });
+
+          item.appendChild(builder(kids, thisPath));
+        }
+        else {
+          node.style.visibility = 'hidden';
+        }
+
+        list.appendChild(item);
+      });
+
+      return list;
+    }
+
+    //console.log(expdSet);
+    return builder(tree);
+  }
+
+  function setCurrentTreeItem(tree, curHref) {
+    document.querySelectorAll(tree).forEach(link => {
+      if (link.href === curHref) {
+        link.classList.remove('current');
+        const head = link.closest('.npi-tree-line');
+        if (head) {
+          head.classList.add('current');
+        }
+
+        let parentLi = link.closest('li.has-children');
+        while (parentLi) {
+          parentLi.classList.add('open');
+          const pHead = parentLi.querySelector('.npi-tree-line');
+          const btn = pHead && pHead.querySelector('.npi-tree-node'); // also update its toggle button to “○”
+          if (btn) btn.textContent = '○';
+          parentLi = parentLi.parentElement.closest('li.has-children');
+        }
+      }
+      else {
+        link.classList.remove('current');
+      }
+    });
+  }
+
+  async function buildTree_init() {
+    const [pri, sec] = await Promise.all([waitFor('#npi-pri-nav'), waitFor('#npi-sec-nav')]);
+    pri.innerHTML = '';
+    sec.innerHTML = '';
+    pri.appendChild(buildTree(_priTree, window.location.href.split('#')[0], true, false, KEY_PRI_NAV_EXPANDED_NODES));
+    if (_secTree.length > 0) {
+      sec.appendChild(buildTree(_secTree, window.location.hash, false, true, 'all'));
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // #endregion 🟥 BUILD TREE
 
   // #region 🟩 DUAL NAV FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -802,7 +1665,7 @@
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // #endregion 🟥 SET CORRECT LAYOUT
 
-  // #region 🟩 ADJUST HEIGHTS
+  // #region 🟩 ADJUST X AND H
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async function adjustXandH() {
@@ -868,7 +1731,22 @@
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // #endregion 🟥 ADJUST HEIGHTS
+  // #endregion 🟥 ADJUST X AND H
+
+  // #region 🟩 URL ANCHOR HASH LISTNER
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  window.addEventListener('hashchange', function (event) {
+    // This function is called whenever the anchor part (i.e. tge hash part of ...html#...) in the URL changess
+    if (_secTree.length > 0) {
+      //setCurrentTreeItem('#npi-sec-nav .npi-tree-link', window.location.hash);
+    }
+    console.log('New Hash', window.location.hash);
+    sessionStorage.setItem('Test', window.location.hash);
+  }, false);
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // #endregion 🟥 URL ANCHOR HASH LISTNER
 
   // #region 🟩 DOCUMENT DOM LOADING CALLS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -876,11 +1754,23 @@
   async function docOnReady() {
     searchPlaceholderTweak();
     sideNavTweak();
-    navToggleButton();
+    sidebarToggleButton();
     dualNavResizer();
+    await genPriTree();
     await genSecTree();
     setCorrectLayout(MEDIA_QUERY_WIN_WIDTH);
     adjustXandH_init();
+    /*
+    buildTree_init();
+    const a = document.createElement('a');
+    a.href = window.location.hash;
+    console.log('ROOT:', DOC_ROOT);
+    console.log('URL:', window.location.href);
+    console.log('Name:', HTML_NAME);
+    console.log('HASH:', window.location.hash);
+    console.log('HREF:', a.href);
+    console.log('Test:', sessionStorage.getItem('Test'));
+    */
   }
 
   if (document.readyState === 'loading') {

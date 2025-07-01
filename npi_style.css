@@ -58,7 +58,7 @@ doxygen-awesome-dark-mode-toggle:hover {
 /*━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
 /* DUAL SIDEBAR BUTTON CUSTOMIZATIONS */
 /*━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
-#main-nav #searchBoxPos2 .npi-nav-toggle-btn {
+#main-nav #searchBoxPos2 .npi-sidebar-toggle-btn {
   display: inline-flex; /* same as their flex container */
   margin-left: 5px !important; /* same left‐gap (replace by var(--spacing-small) if needed) */
   padding: 0; /* no extra padding */
@@ -77,11 +77,11 @@ doxygen-awesome-dark-mode-toggle:hover {
   cursor: pointer;
 }
 
-#main-nav #searchBoxPos2 .npi-nav-toggle-btn:hover {
+#main-nav #searchBoxPos2 .npi-sidebar-toggle-btn:hover {
   background: var(--npi-button-hover-color) !important;
 }
 
-#main-nav #searchBoxPos2 .npi-nav-toggle-btn > img {
+#main-nav #searchBoxPos2 .npi-sidebar-toggle-btn > img {
   max-width: 60%; /* adjust as needed so the PNG isn’t too large */
   max-height: 60%; /* 60% of 24px ≈ 14px tall/wide */
   object-fit: contain;
@@ -259,3 +259,15 @@ body {
   }
 }
   */
+
+li.npi-current .npi-tree-line {
+  background-color: rgb(255, 0, 0) !important;
+}
+
+li.npi-has-children > ul {
+  display: none;
+}
+
+li.npi-has-children.npi-node-open > ul {
+  display: block;
+}
